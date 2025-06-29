@@ -4,18 +4,14 @@ require 'freetype'
 require 'freetype/c'
 require 'rmagick'
 
-include FreeType::API
-include FreeType::C
-include Magick
-
-# === CONFIGURATION ===
-font_path = './NotoSansMono-Regular.ttf'
-gid       = 123  # Replace with your desired glyph index
-output    = "glyph_#{gid}.png"
+Opts = {
+  "dpi" => 64
+}
+require "getOpts.rb"
 
 # === INITIALIZE FONT ===
-font = FreeType::API::Font.open(font_path)
-font.set_char_size(0, 64 * 64, 300, 300)
+ft_font = FreeType::API::Font.open(Opts.font)
+ft_font.set_char_size(0, Opts.dpi * Opts.dpi, Opts.width, Opts.height)
 
 # === RENDER GLYPH ===
 module FreeType::C
@@ -25,27 +21,27 @@ module FreeType::C
   attach_function :FT_Load_Glyph, [:pointer, :uint, :int], :int
 end
 
-FreeType::C.FT_Load_Glyph(font.face, gid, FreeType::C::FT_LOAD_RENDER)
-slot   = font.face[:glyph]
-bitmap = slot[:bitmap]
+FreeType::C.FT_Load_Glyph(ft_font.face, Opts.gid, FreeType::C::FT_LOAD_RENDER)
+ft_slot   = ft_font.face[:glyph]
+ft_bitmap = ft_slot[:bitmap]
 
 # === EXTRACT BITMAP DATA ===
-width  = bitmap[:width]
-height = bitmap[:rows]
-buffer_ptr = bitmap[:buffer]
+glyph_width  = ft_bitmap[:width]
+glyph_height = ft_bitmap[:rows]
+glyph_buffer_ptr = ft_bitmap[:buffer]
 
-if buffer_ptr.null?
+if glyph_buffer_ptr.null?
   puts "Glyph #{gid} has no bitmap (possibly empty or outline-only)."
   exit
 end
 
-pixels = buffer_ptr.read_bytes(width * height).unpack('C*')
+glyph_pixels = glyph_buffer_ptr.read_bytes(glyph_width * glyph_height).unpack('C*')
 
 # === CREATE IMAGE ===
-image = Image.new(width, height)
-image.background_color = "white"
-image.import_pixels(0, 0, width, height, 'I', pixels)
+magick_image = Magick::Image.new(glyph_width, glyph_height)
+magick_image.background_color = "white"
+magick_image.import_pixels(0, 0, glyph_width, glyph_height, 'I', glyph_pixels)
 
 # === SAVE IMAGE ===
-image.write(output)
-puts "Saved rasterized glyph ##{gid} to #{output}"
+magick_image.write(Opts.output)
+puts "Saved rasterized glyph ##{Opts.gid} to #{Opts.output}"

@@ -48,7 +48,7 @@ int get_pixel_be_from_buffer(unsigned char*  column_pixels,
 }
 
 
-int dump_glyph_bitmap_as_aa(FT_Bitmap*  bitmap_ptr,
+void dump_glyph_bitmap_as_aa(FT_Bitmap*  bitmap_ptr,
                             FT_Int      bearing_top,
                             FT_Int      bearing_left)
 {

@@ -129,6 +129,7 @@ int main(int argc, char** argv)
 
   ft_err = FT_New_Face( ft_lib, path_font, 0, &ft_face );
   if (ft_err) return ft_err;
+  printf("ft_face->num_glyphs=%ld\n", ft_face->num_glyphs);
 
   ft_err = FT_Set_Pixel_Sizes( ft_face, 0, height );
   if (ft_err) return ft_err;
@@ -138,6 +139,15 @@ int main(int argc, char** argv)
 
   ft_err = FT_Load_Glyph( ft_face, ft_gid, 0 );
   if (ft_err) return ft_err;
+  printf("ft_face->glyph->glyph_index=%d\n", ft_face->glyph->glyph_index);
+  printf("ft_face->underline_position=%d\n", ft_face->underline_position);
+  printf("ft_face->underline_thickness=%d\n", ft_face->underline_thickness);
+
+  printf("original library = %p\n", ft_lib);
+  printf("library in glyph slot = %p\n", ft_face->glyph->library);
+  printf("original face = %p\n", ft_face);
+  printf("face in glyph slot = %p\n", ft_face->glyph->face);
+
 
   ft_err = FT_Render_Glyph( ft_face->glyph, ft_render_mode );
   if (ft_err) return ft_err;

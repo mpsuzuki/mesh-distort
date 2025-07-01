@@ -276,32 +276,67 @@ magick_image = magick_image.negate
 
 # === DISTORT ===
 xorshift32 = XorShift32.new(Opts.a, Opts.b, Opts.c, Opts.seed)
-points = []
+points1 = []
+points2 = []
 (1..Opts.mesh).each do |iy|
   src_y = glyph_height * iy / Opts.mesh
   (1..Opts.mesh).each do |ix|
     src_x = glyph_width * ix / Opts.mesh
-    dx = ((xorshift32.next() & 0x1F) - 0xF) * Opts.strength / 0xF
-    dy = ((xorshift32.next() & 0x1F) - 0xF) * Opts.strength / 0xF
-    dst_x = src_x + dx
-    dst_y = src_y + dy
-    points << src_x
-    points << src_y
-    points << dst_x
-    points << dst_y
+    dx1 = ((xorshift32.next() & 0x1F) - 0xF) * Opts.strength / 0xF
+    dy1 = ((xorshift32.next() & 0x1F) - 0xF) * Opts.strength / 0xF
+    dx2 = ((xorshift32.next() & 0x1F) - 0xF) * Opts.strength / 0xF
+    dy2 = ((xorshift32.next() & 0x1F) - 0xF) * Opts.strength / 0xF
+    dst1_x = src_x + dx1
+    dst1_y = src_y + dy1
+    dst2_x = src_x + dx2
+    dst2_y = src_y + dy2
+    points1 << src_x
+    points1 << src_y
+    points2 << src_x
+    points2 << src_y
+    points1 << dst1_x
+    points1 << dst1_y
+    points2 << dst2_x
+    points2 << dst2_y
   end
 end
-magick_image_distorted = magick_image.distort(Magick::ShepardsDistortion, points, true)
+magick_image_distorted1 = magick_image.distort(Magick::ShepardsDistortion, points1, true)
+magick_image_distorted2 = magick_image.distort(Magick::ShepardsDistortion, points2, true)
 
 # === SAVE IMAGE ===
-mask_orig = magick_image.transparent("white")
-mask_dist = magick_image_distorted.transparent("white")
-magick_image_orig_color = mask_orig.colorize(1.0, 1.0, 1.0, "blue")
-magick_image_dist_color = mask_dist.colorize(1.0, 1.0, 1.0, "red")
-magick_image_layered = magick_image_orig_color.composite(
-   magick_image_dist_color,
-   0, 0,
-   Magick::OverCompositeOp)
-magick_image_distorted.write(Opts.output)
+img_orig = magick_image # .transparent("white")
+img_dist1 = magick_image_distorted1 # .transparent("white")
+img_dist2 = magick_image_distorted2 # .transparent("white")
+img_mixed = Magick::Image.new(img_orig.columns, img_orig.rows)
+
+def decr(v, lmt, s = 2.0)
+  if (v < lmt)
+    return [lmt - ((lmt - v) * s), 0].max
+  else
+    return v
+  end
+end
+
+
+pxls_dist1 = img_dist1.get_pixels(0, 0, img_dist1.columns, img_dist1.rows)
+pxls_dist2 = img_dist2.get_pixels(0, 0, img_dist2.columns, img_dist2.rows)
+pxls_mixed = pxls_dist1.zip(pxls_dist2).map{|pxl_dist1, pxl_dist2|
+  fi_dist1 = pxl_dist1.intensity * 1.0 / Magick::QuantumRange
+  fi_dist2 = pxl_dist2.intensity * 1.0 / Magick::QuantumRange
+
+  if (fi_dist1 < 1 || fi_dist2 < 1)
+    fi_dist1 = fi_dist1 * 0.9
+    fi_dist2 = fi_dist2 * 0.9
+  end
+
+  r =  fi_dist1 * Magick::QuantumRange
+  g =  fi_dist2 * Magick::QuantumRange
+  b =  fi_dist1 * fi_dist2 * Magick::QuantumRange
+  pxl_mixed = Magick::Pixel.new(r, g, b)
+  pxl_mixed
+}
+img_mixed.store_pixels(0, 0, img_mixed.columns, img_mixed.rows, pxls_mixed)
+
+img_mixed.write(Opts.output)
 
 puts "Saved rasterized glyph ##{Opts.gid} to #{Opts.output}"

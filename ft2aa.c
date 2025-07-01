@@ -152,6 +152,11 @@ int main(int argc, char** argv)
   ft_err = FT_Render_Glyph( ft_face->glyph, ft_render_mode );
   if (ft_err) return ft_err;
 
+  printf("x_ppem=0x%08x\n", ft_face->size->metrics.x_ppem);
+  printf("y_ppem=0x%08x\n", ft_face->size->metrics.y_ppem);
+  printf("ascender=0x%016lx\n", ft_face->size->metrics.ascender);
+  printf("descender=0x%016lx\n", ft_face->size->metrics.descender);
+
   dump_glyph_bitmap_as_aa( &(ft_face->glyph->bitmap),
                              ft_face->glyph->bitmap_top,
                              ft_face->glyph->bitmap_left );

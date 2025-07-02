@@ -264,10 +264,10 @@ points2 = []
   src_y = glyph_height * iy / Opts.mesh
   (1..Opts.mesh).each do |ix|
     src_x = glyph_width * ix / Opts.mesh
-    dx1 = ((xorshift32.next() & 0x1F) - 0xF) * Opts.strength / 0xF
-    dy1 = ((xorshift32.next() & 0x1F) - 0xF) * Opts.strength / 0xF
-    dx2 = ((xorshift32.next() & 0x1F) - 0xF) * Opts.strength / 0xF
-    dy2 = ((xorshift32.next() & 0x1F) - 0xF) * Opts.strength / 0xF
+    dx1 = ((xorshift32.next() & 0x1F) - 0xF) * Opts.strength / 0x1F
+    dy1 = ((xorshift32.next() & 0x1F) - 0xF) * Opts.strength / 0x1F
+    dx2 = ((xorshift32.next() & 0x1F) - 0xF) * Opts.strength / 0x1F
+    dy2 = ((xorshift32.next() & 0x1F) - 0xF) * Opts.strength / 0x1F
     dst1_x = src_x + dx1
     dst1_y = src_y + dy1
     dst2_x = src_x + dx2

@@ -9,6 +9,8 @@ Opts = {
   "utf8" => "A",
   "uhex" => nil,
   "seed" => "0xDEADBEEF",
+  "noise_subtract" => 20,
+  "noise_add" => 0,
   "mesh" => 1,
   "width" => 0,
   "height" => 32
@@ -164,10 +166,10 @@ magick_image_distorted2 = magick_image.distort(Magick::ShepardsDistortion, point
 
 # === RANDOM MASK IMAGES ===
 
-def gen_random_mask(img_width, img_height, stroke_width, number_strokes, rand_generator)
+def gen_random_mask(img_width, img_height, stroke_color, stroke_width, number_strokes, rand_generator)
   canvas = Magick::Image.new(img_width, img_height) {|options| options.background_color = "none"}
   draw = Magick::Draw.new()
-  draw.stroke("white")
+  draw.stroke(stroke_color)
   draw.stroke_width(stroke_width)
   draw.stroke_linecap("round")
   number_strokes.times do
@@ -185,10 +187,27 @@ end
 img_orig = magick_image # .transparent("white")
 img_dist1 = magick_image_distorted1 # .transparent("white")
 img_dist2 = magick_image_distorted2 # .transparent("white")
-mask1 = gen_random_mask(img_orig.columns, img_orig.rows, 15, 20, xorshift32)
-mask2 = gen_random_mask(img_orig.columns, img_orig.rows, 15, 20, xorshift32)
-img_dist1 = mask1.composite(img_dist1, 0, 0, Magick::DstOverCompositeOp)
-img_dist2 = mask2.composite(img_dist2, 0, 0, Magick::DstOverCompositeOp)
+
+p Opts.noise_add
+
+mask_sub1 = gen_random_mask(img_orig.columns, img_orig.rows,
+                            "white", img_orig.rows / 20, Opts.noise_subtract,
+                            xorshift32)
+mask_add1 = gen_random_mask(img_orig.columns, img_orig.rows,
+                            "black", img_orig.rows / 20, Opts.noise_add,
+                            xorshift32)
+
+mask_sub2 = gen_random_mask(img_orig.columns, img_orig.rows,
+                            "white", img_orig.rows / 20, Opts.noise_subtract,
+                            xorshift32)
+mask_add2 = gen_random_mask(img_orig.columns, img_orig.rows,
+                            "black", img_orig.rows / 20, Opts.noise_add,
+                            xorshift32)
+
+img_dist1 = img_dist1.composite(mask_sub1, 0, 0, Magick::SrcOverCompositeOp)
+                     .composite(mask_add1, 0, 0, Magick::SrcOverCompositeOp)
+img_dist2 = img_dist2.composite(mask_sub2, 0, 0, Magick::SrcOverCompositeOp)
+                     .composite(mask_add2, 0, 0, Magick::SrcOverCompositeOp)
 
 img_mixed = Magick::Image.new(img_orig.columns, img_orig.rows)
 

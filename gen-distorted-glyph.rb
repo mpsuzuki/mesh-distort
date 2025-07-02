@@ -308,7 +308,7 @@ pxls_mixed = pxls_dist1.zip(pxls_dist2).map{|pxl_dist1, pxl_dist2|
 
   if (fi_dist1 < 1 || fi_dist2 < 1)
     fi_dist1 = fi_dist1 * 0.9
-    fi_dist2 = fi_dist2 * 0.9
+    fi_dist2 = fi_dist2 * 0.8
   end
 
   r =  fi_dist1 * Magick::QuantumRange

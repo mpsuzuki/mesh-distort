@@ -8,7 +8,7 @@ Opts = {
   "aa" => false,
   "utf8" => "A",
   "uhex" => nil,
-  "seed" => 0xDEADBEEF,
+  "seed" => "0xDEADBEEF",
   "mesh" => 1,
   "width" => 0,
   "height" => 32
@@ -18,6 +18,9 @@ if (Opts["uhex"] != nil)
   Opts["uhex"] = Opts.uhex.gsub(/^[Uu]\+/, "").hex()
 elsif (Opts["utf8"] != nil)
   Opts["uhex"] = Opts["utf8"].split("").first.encode("ucs-4be").unpack("N").first
+end
+if (Opts["seed"] != nil)
+  Opts["seed"] = Opts["seed"].hex()
 end
 
 # === INITIALIZE FREETYPE ===

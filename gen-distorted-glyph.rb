@@ -285,10 +285,34 @@ end
 magick_image_distorted1 = magick_image.distort(Magick::ShepardsDistortion, points1, true)
 magick_image_distorted2 = magick_image.distort(Magick::ShepardsDistortion, points2, true)
 
+# === RANDOM MASK IMAGES ===
+
+def gen_random_mask(img_width, img_height, stroke_width, number_strokes, rand_generator)
+  canvas = Magick::Image.new(img_width, img_height) {|options| options.background_color = "none"}
+  draw = Magick::Draw.new()
+  draw.stroke("white")
+  draw.stroke_width(stroke_width)
+  draw.stroke_linecap("round")
+  number_strokes.times do
+    x = rand_generator.next() % img_width
+    y = rand_generator.next() % img_height
+    dx = (rand_generator.next() % (img_width / 4))  - (img_width  /8)
+    dy = (rand_generator.next() % (img_height / 4)) - (img_height /8)
+    draw.line(x, y, x + dx, y + dy)
+  end
+  draw.draw(canvas)
+  return canvas
+end
+
 # === SAVE IMAGE ===
 img_orig = magick_image # .transparent("white")
 img_dist1 = magick_image_distorted1 # .transparent("white")
 img_dist2 = magick_image_distorted2 # .transparent("white")
+mask1 = gen_random_mask(img_orig.columns, img_orig.rows, 15, 20, xorshift32)
+mask2 = gen_random_mask(img_orig.columns, img_orig.rows, 15, 20, xorshift32)
+img_dist1 = mask1.composite(img_dist1, 0, 0, Magick::DstOverCompositeOp)
+img_dist2 = mask2.composite(img_dist2, 0, 0, Magick::DstOverCompositeOp)
+
 img_mixed = Magick::Image.new(img_orig.columns, img_orig.rows)
 
 def decr(v, lmt, s = 2.0)

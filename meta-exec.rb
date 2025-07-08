@@ -5,6 +5,11 @@ Opts = {
   "b" => 13,
   "c" => 7,
   "seed" => "0xDEADBEEF",
+  "dir" => "./",
+  "mesh" => 16,
+  "strength" => 20,
+  "noise-subtract" => 20,
+  "noise-add" => 0,
   "width" => 14,
   "height" => 14
 }
@@ -12,6 +17,8 @@ require "getOpts.rb"
 if (Opts["seed"] != nil)
   Opts["seed"] = Opts["seed"].hex()
 end
+
+Opts["font-base"] = Opts.font.split("/").last.gsub(/\.[0-9A-Za-z]{3,4}$/, "")
 
 # === INITIALIZE FREETYPE ===
 require "./freetype-class.rb"
@@ -47,6 +54,24 @@ xorshift32 = XorShift32.new(Opts.a, Opts.b, Opts.c, Opts.seed)
 
   glyph_width  = ft_bitmap[:width]
   glyph_height = ft_bitmap[:rows]
-  next if glyph_width == 0 || glyph_height == 0
-  printf("gid=%d bitmap=%dx%d seed=0x%08x\n", gid, glyph_width, glyph_height, xorshift32.next())
+  if glyph_width == 0 || glyph_height == 0
+    next
+  elsif (Opts.include?("cmd"))
+    sd = xorshift32.next()
+    cmd = [ "./gen-distorted-glyph.rb" ]
+    cmd << sprintf("--font=%s", Opts.font)
+    cmd << sprintf("--gid=%d", gid)
+    cmd << sprintf("--height=%d", Opts.height)
+    cmd << sprintf("--seed=0x%08x", sd)
+    cmd << sprintf("--strength=%d", Opts.strength)
+    cmd << sprintf("--noise-subtract=%d", Opts.noise_subtract)
+    cmd << sprintf("--noise-add=%d", Opts.noise_add)
+    cmd << sprintf("--output=%s_g%05d_pw%02d_sub%02d_add%02d_sdx%08x.png",
+      [Opts.dir, Opts.font_base].join("/"), gid,
+      Opts.strength, Opts.noise_subtract, Opts.noise_add, sd
+    )
+    puts cmd.join(" ")
+  else
+    printf("gid=%d bitmap=%dx%d seed=0x%08x\n", gid, glyph_width, glyph_height, xorshift32.next())
+  end
 end

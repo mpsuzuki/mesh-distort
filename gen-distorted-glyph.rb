@@ -38,22 +38,14 @@ ft_face_ptr = FFI::MemoryPointer.new(:pointer)
 ft_err = FreeType::C.FT_New_Face(ft_lib, Opts.font, 0, ft_face_ptr)
 raise "FT_New_Face() failed" unless ft_err == 0
 ft_face = FT_FaceRec.new(ft_face_ptr.read_pointer())
-p ft_face_ptr.read_pointer()
 
 # === SET PIXEL SIZE ===
 ft_err = FreeType::C.FT_Set_Pixel_Sizes(ft_face, Opts.width, Opts.height)
 raise "FT_Set_Pixel_Sizes() failed" unless ft_err == 0
 
 ft_size = FT_SizeRec.new(ft_face[:size])
-p ft_size[:face]
 
 ft_metric = ft_size[:metrics]
-printf("x_ppem=0x%x\n", ft_metric[:x_ppem])
-printf("y_ppem=0x%x\n", ft_metric[:y_ppem])
-printf("ascender=0x%016x\n", ft_metric[:ascender])
-printf("descender=0x%016x\n", ft_metric[:descender])
-printf("height=0x%x\n", ft_metric[:height])
-printf("max_advance=0x%x\n", ft_metric[:max_advance])
 
 # === RENDER GLYPH ===
 if (Opts.gid == 0)
@@ -74,14 +66,6 @@ glyph_width  = ft_bitmap[:width]
 glyph_height = ft_bitmap[:rows]
 glyph_advance_to_baseline  = ft_glyphslot[:bitmap_top]
 glyph_left_bearing = ft_glyphslot[:bitmap_left]
-
-p ["Opts.width:", Opts.width]
-p ["Opts.height:", Opts.height]
-p ["bitmap_width:", glyph_width]
-p ["bitmap_height:", glyph_height]
-p ["advance_to_baseline:", glyph_advance_to_baseline]
-p ["bearing_left:", glyph_left_bearing]
-
 
 ft_pixel_buffer_ptr = ft_bitmap[:buffer]
 nbytes_row = ft_bitmap[:pitch]
@@ -187,8 +171,6 @@ end
 img_orig = magick_image # .transparent("white")
 img_dist1 = magick_image_distorted1 # .transparent("white")
 img_dist2 = magick_image_distorted2 # .transparent("white")
-
-p Opts.noise_add
 
 mask_sub1 = gen_random_mask(img_orig.columns, img_orig.rows,
                             "white", img_orig.rows / 20, Opts.noise_subtract,

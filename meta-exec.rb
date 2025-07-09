@@ -59,6 +59,7 @@ xorshift32 = XorShift32.new(Opts.a, Opts.b, Opts.c, Opts.seed)
   elsif (Opts.include?("cmd"))
     sd = xorshift32.next()
     cmd = [ "./gen-distorted-glyph.rb" ]
+    cmd << sprintf("--mesh=%d", Opts.mesh)
     cmd << sprintf("--font=%s", Opts.font)
     cmd << sprintf("--gid=%d", gid)
     cmd << sprintf("--height=%d", Opts.height)

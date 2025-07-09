@@ -66,8 +66,8 @@ ft_bitmap = ft_glyphslot[:bitmap]
 # === EXTRACT BITMAP DATA ===
 glyph_width  = ft_bitmap[:width]
 glyph_height = ft_bitmap[:rows]
-glyph_advance_to_baseline  = ft_glyphslot[:bitmap_top]
-glyph_left_bearing = ft_glyphslot[:bitmap_left]
+glyph_advance_to_baseline  = [0, ft_glyphslot[:bitmap_top]].max
+glyph_left_bearing = [0, ft_glyphslot[:bitmap_left]].max
 
 ft_pixel_buffer_ptr = ft_bitmap[:buffer]
 nbytes_row = ft_bitmap[:pitch]

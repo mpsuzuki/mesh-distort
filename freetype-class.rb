@@ -116,6 +116,34 @@ class FT_FaceRec < FFI::Struct
     :size,         :pointer
   )
 end
+class FT_Var_Axis < FFI::Struct
+  layout(
+    :name,    :pointer,
+
+    :minimum, :long,
+    :def,     :long,
+    :maximum, :long,
+
+    :tag,     :ulong,
+    :strid,   :uint
+  )
+end
+class FT_Var_Named_Style < FFI::Struct
+  layout(
+    :coords, :pointer, # FT_Fixed[num_axis]
+    :strid,  :uint,
+    :psid,   :uint
+  )
+end
+class FT_MM_Var < FFI::Struct
+  layout(
+    :num_axis,        :uint,
+    :num_designs,     :uint,
+    :num_namedstyles, :uint,
+    :axis,            :pointer, # FT_Var_Axis[num_axis]
+    :namedstyle,      :pointer  # FT_Var_Named_Style[num_namedstyles]
+  )
+end
 
 module FreeType::C
   extend FFI::Library
@@ -124,4 +152,8 @@ module FreeType::C
   attach_function :FT_Load_Glyph, [:pointer, :uint, :int], :int
   attach_function :FT_Set_Pixel_Sizes, [:pointer, :uint, :uint], :int
   attach_function :FT_Render_Glyph, [:pointer, :int], :int
+  attach_function :FT_Get_MM_Var, [:pointer, :pointer], :int
+  attach_function :FT_Set_Var_Design_Coordinates, [:pointer, :uint, :pointer], :int
+  attach_function :FT_Get_Var_Design_Coordinates, [:pointer, :uint, :pointer], :int
+  attach_function :FT_Done_MM_Var, [:pointer, :pointer], :int
 end

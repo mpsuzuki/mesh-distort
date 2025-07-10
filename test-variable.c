@@ -42,6 +42,15 @@ int main(int argc, char** argv)
         if (mm_var->axis[i].tag == FT_MAKE_TAG('w','g','h','t')) {
             coords[i] = font_variable_wght << 16;  // weight in 16.16 format
         }
+        printf("coords[%d] tag:%c%c%c%c 0x%08lx < 0x%08lx < 0x%08lx\n",
+               i,
+               (char)((mm_var->axis[i].tag >> 24) & 0xFF),
+               (char)((mm_var->axis[i].tag >> 16) & 0xFF),
+               (char)((mm_var->axis[i].tag >>  8) & 0xFF),
+               (char)((mm_var->axis[i].tag >>  0) & 0xFF),
+               mm_var->axis[i].minimum,
+               coords[i],
+               mm_var->axis[i].maximum);
     }
     FT_Set_Var_Design_Coordinates(face, mm_var->num_axis, coords);
 

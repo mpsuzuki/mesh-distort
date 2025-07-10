@@ -6,6 +6,8 @@ Opts = {
   "c" => 14,
   "gid" => 0,
   "aa" => false,
+  "var-wght" => 0.5,
+  "var-wdth" => 0.5,
   "utf8" => "A",
   "uhex" => nil,
   "seed" => "0xDEADBEEF",
@@ -40,6 +42,73 @@ ft_face_ptr = FFI::MemoryPointer.new(:pointer)
 ft_err = FreeType::C.FT_New_Face(ft_lib, Opts.font, 0, ft_face_ptr)
 raise "FT_New_Face() failed" unless ft_err == 0
 ft_face = FT_FaceRec.new(ft_face_ptr.read_pointer())
+
+# if (ft_face[:face_flags] & FreeType::C::FT_FACE_FLAG_MULTIPLE_MASTERS)
+if (ft_face[:face_flags] & (1 << 8))
+  puts("this font is multiple master or variable font")
+end
+
+# === INITIALIZE WEIGHT ===
+ft_mm_var_ptr = FFI::MemoryPointer.new(:pointer)
+ft_err = FreeType::C.FT_Get_MM_Var(ft_face, ft_mm_var_ptr)
+if (ft_err == 0)
+  ft_mm_var = FT_MM_Var.new(ft_mm_var_ptr.read_pointer())
+  puts "Number of axis: #{ft_mm_var[:num_axis]}"
+
+  wght = Opts.var_wght
+  wdth = Opts.var_wdth
+
+  axis_ptr = ft_mm_var[:axis]
+  num_axis = ft_mm_var[:num_axis]
+  axis = Array.new(num_axis)
+  coord_values = Array.new(num_axis)
+  ft_mm_var[:num_axis].times do |axis_idx|
+    axis[axis_idx] = FT_Var_Axis.new(axis_ptr + axis_idx * FT_Var_Axis.size)
+
+    str_tag = [ axis[axis_idx][:tag] ].pack("N").encode("us-ascii")
+    v_min = axis[axis_idx][:minimum]
+    v_def = axis[axis_idx][:def]
+    v_max = axis[axis_idx][:maximum]
+
+    is_def = ""
+    case (str_tag)
+    when "wght" then
+      coord_values[axis_idx] = [ [
+        v_min,
+        v_min + (v_max - v_min) * Opts.var_wght].max,
+        v_max
+      ].min
+    when "wdth" then
+      coord_values[axis_idx] = [ [
+        v_min,
+        v_min + (v_max - v_min) * Opts.var_wdth].max,
+        v_max
+      ].min
+    else
+      coord_values[axis_idx] = v_def
+      is_def = "(def)"
+    end
+
+    printf("axis #%d - tag: %s - range 0x%08x < 0x%08x%s < 0x%08x\n",
+      axis_idx, str_tag, v_min, coord_values[axis_idx], is_def, v_max)
+  end
+
+  coord_ptr = FFI::MemoryPointer.new(:int32, num_axis)
+  coord_ptr.write_array_of_int32(coord_values)
+
+  ft_err = FreeType::C.FT_Set_Var_Design_Coordinates(ft_face, num_axis, coord_ptr)
+  raise "FT_Set_Var_Design_Coordinates() failed" unless ft_err == 0
+
+  coord_ptr_r = FFI::MemoryPointer.new(:int32, num_axis)
+  ft_err = FreeType::C.FT_Get_Var_Design_Coordinates(ft_face, num_axis, coord_ptr_r)
+  raise "FT_Get_Var_Design_Coordinates() failed" unless ft_err == 0
+  coord_values_r = coord_ptr_r.read_array_of_int32(num_axis)
+
+  num_axis.times do |axis_idx|
+    printf("coord #%d: 0x%08x -> 0x%08x\n",
+            axis_idx, coord_values[axis_idx], coord_values_r[axis_idx])
+  end
+end
 
 # === SET PIXEL SIZE ===
 ft_err = FreeType::C.FT_Set_Pixel_Sizes(ft_face, Opts.width, Opts.height)

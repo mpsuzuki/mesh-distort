@@ -6,8 +6,6 @@ Opts = {
   "c" => 14,
   "gid" => 0,
   "aa" => false,
-  "var-wght" => 0.5,
-  "var-wdth" => 0.5,
   "utf8" => "A",
   "uhex" => nil,
   "seed" => "0xDEADBEEF",
@@ -70,39 +68,46 @@ if (ft_err == 0)
     v_def = axis[axis_idx][:def]
     v_max = axis[axis_idx][:maximum]
 
-    is_def = ""
+    coord_values[axis_idx] = v_def
+    is_def = "(def)"
     case (str_tag)
     when "wght" then
-      coord_values[axis_idx] = [ [
-        v_min,
-        v_min + (v_max - v_min) * Opts.var_wght].max,
-        v_max
-      ].min
+      if (Opts.var_wght != nil)
+        is_def = ""
+        coord_values[axis_idx] = [ [
+          v_min,
+          v_min + (v_max - v_min) * Opts.var_wght].max,
+          v_max
+        ].min
+      end
     when "wdth" then
-      coord_values[axis_idx] = [ [
-        v_min,
-        v_min + (v_max - v_min) * Opts.var_wdth].max,
-        v_max
-      ].min
-    else
-      coord_values[axis_idx] = v_def
-      is_def = "(def)"
+      if (Opts.var_wdth != nil)
+        is_def = ""
+        coord_values[axis_idx] = [ [
+          v_min,
+          v_min + (v_max - v_min) * Opts.var_wdth].max,
+          v_max
+        ].min
+      end
     end
 
     printf("axis #%d - tag: %s - range 0x%08x < 0x%08x%s < 0x%08x\n",
       axis_idx, str_tag, v_min, coord_values[axis_idx], is_def, v_max)
   end
 
-  coord_ptr = FFI::MemoryPointer.new(:int32, num_axis)
-  coord_ptr.write_array_of_int32(coord_values)
+  coord_ptr = FFI::MemoryPointer.new(:long, num_axis)
+  coord_ptr.write_array_of_long(coord_values)
 
   ft_err = FreeType::C.FT_Set_Var_Design_Coordinates(ft_face, num_axis, coord_ptr)
-  raise "FT_Set_Var_Design_Coordinates() failed" unless ft_err == 0
+  if (ft_err)
+    printf("FT_Set_Var_Design_Coodinates() error = %d\n", ft_err)
+    # raise "FT_Set_Var_Design_Coordinates() failed"
+  end
 
-  coord_ptr_r = FFI::MemoryPointer.new(:int32, num_axis)
+  coord_ptr_r = FFI::MemoryPointer.new(:long, num_axis)
   ft_err = FreeType::C.FT_Get_Var_Design_Coordinates(ft_face, num_axis, coord_ptr_r)
   raise "FT_Get_Var_Design_Coordinates() failed" unless ft_err == 0
-  coord_values_r = coord_ptr_r.read_array_of_int32(num_axis)
+  coord_values_r = coord_ptr_r.read_array_of_long(num_axis)
 
   num_axis.times do |axis_idx|
     printf("coord #%d: 0x%08x -> 0x%08x\n",
@@ -122,11 +127,17 @@ ft_metric = ft_size[:metrics]
 if (Opts.gid == 0)
   Opts.gid = FreeType::C.FT_Get_Char_Index(ft_face, Opts.uhex)
 end
-ft_err = FreeType::C.FT_Load_Glyph(ft_face, Opts.gid, FreeType::C::FT_LOAD_RENDER)
+ft_err = FreeType::C.FT_Load_Glyph( ft_face, Opts.gid, 8)
 raise "FT_Load_Glyph() failed" unless ft_err == 0
 
 ft_glyphslot_ptr = ft_face[:glyph]
 ft_glyphslot = FT_GlyphSlotRec.new(ft_glyphslot_ptr)
+
+puts("glyph format is " + [ft_glyphslot[:format]].pack("N").encode("us-ascii"))
+if (ft_glyphslot[:format] == "outl".unpack("N*").first)
+  puts("this glyph is outline")
+end
+
 
 ft_err = FreeType::C.FT_Render_Glyph(ft_glyphslot_ptr, 0)
 raise "FT_Render_Glyph() failed" unless ft_err == 0

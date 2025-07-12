@@ -18,6 +18,7 @@ void draw_bitmap_as_ascii(FT_Bitmap *bitmap)
 
 int main(int argc, char** argv)
 {
+    FT_Error    ft_err = FT_Err_Ok;
     FT_Library  library;
     FT_Face     face;
     FT_MM_Var  *mm_var = NULL;
@@ -52,12 +53,13 @@ int main(int argc, char** argv)
                coords[i],
                mm_var->axis[i].maximum);
     }
-    FT_Set_Var_Design_Coordinates(face, mm_var->num_axis, coords);
+    ft_err = FT_Set_Var_Design_Coordinates(face, mm_var->num_axis, coords);
+    printf("FT_Set_Var_Design_Coordinates() returns %d\n", ft_err);
 
     // Render glyph 'A'
-    FT_UInt glyph_index = FT_Get_Char_Index(face, 'A');
+    FT_UInt glyph_index = FT_Get_Char_Index(face, 'M');
     FT_Load_Glyph(face, glyph_index, FT_LOAD_DEFAULT | FT_LOAD_NO_BITMAP);
-    FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL);
+    FT_Render_Glyph(face->glyph, 0);
 
     draw_bitmap_as_ascii(&face->glyph->bitmap);
 

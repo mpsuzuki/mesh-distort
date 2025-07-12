@@ -10,8 +10,9 @@ Opts = {
   "uhex" => nil,
   "seed" => "0xDEADBEEF",
   "strength" => 20,
-  "noise_subtract" => 20,
-  "noise_add" => 0,
+  "noise-subtract" => 20,
+  "noise-add" => 0,
+  "erode-dilate" => "0:0",
   "output" => "glyph.png",
   "mesh" => 1,
   "width" => 0,
@@ -25,6 +26,10 @@ elsif (Opts["utf8"] != nil)
 end
 if (Opts["seed"] != nil)
   Opts["seed"] = Opts["seed"].hex()
+end
+if (Opts["erode-dilate"] != nil)
+  Opts["erode-dilate-1"] = Opts.erode_dilate.split(":").first.to_i()
+  Opts["erode-dilate-2"] = Opts.erode_dilate.split(":").last.to_i()
 end
 
 # === INITIALIZE FREETYPE ===
@@ -227,8 +232,31 @@ points2 = []
     points2 << dst2_y
   end
 end
-magick_image_distorted1 = magick_image.distort(Magick::ShepardsDistortion, points1, true)
-magick_image_distorted2 = magick_image.distort(Magick::ShepardsDistortion, points2, true)
+if (Opts["erode-dilate-1"])
+  if (Opts.erode_dilate_1 > 0)
+    magick_image_distorted1 = magick_image.morphology(
+      Magick::ErodeMorphology, Opts.erode_dilate_1, "Diamond")
+  elsif (Opts.erode_dilate_1 < 0)
+    magick_image_distorted1 = magick_image.morphology(
+      Magick::DilateMorphology, 0 - Opts.erode_dilate_1, "Diamond")
+  else
+    magick_image_distorted1 = magick_image
+  end
+end
+magick_image_distorted1 = magick_image_distorted1.distort(Magick::ShepardsDistortion, points1, true)
+
+if (Opts["erode-dilate-2"])
+  if (Opts.erode_dilate_2 > 0)
+    magick_image_distorted2 = magick_image.morphology(
+      Magick::ErodeMorphology, Opts.erode_dilate_2, "Diamond")
+  elsif (Opts.erode_dilate_2 < 0)
+    magick_image_distorted2 = magick_image.morphology(
+      Magick::DilateMorphology, 0 - Opts.erode_dilate_2, "Diamond")
+  else
+    magick_image_distorted2 = magick_image
+  end
+end
+magick_image_distorted2 = magick_image_distorted2.distort(Magick::ShepardsDistortion, points2, true)
 
 # === RANDOM MASK IMAGES ===
 

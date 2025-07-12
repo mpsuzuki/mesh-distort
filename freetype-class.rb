@@ -156,4 +156,8 @@ module FreeType::C
   attach_function :FT_Set_Var_Design_Coordinates, [:pointer, :uint, :pointer], :int
   attach_function :FT_Get_Var_Design_Coordinates, [:pointer, :uint, :pointer], :int
   attach_function :FT_Done_MM_Var, [:pointer, :pointer], :int
+  attach_function :FT_Done_Glyph, [:pointer], :int
+  attach_function :FT_Done_Face, [:pointer], :int
+  attach_function :FT_Done_Library, [:pointer], :int
+  attach_function :FT_Done_FreeType, [:pointer], :int
 end

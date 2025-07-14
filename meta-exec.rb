@@ -27,7 +27,7 @@ end
 if (!Opts.include?("font"))
   Opts.args.each{|f| Opts["fonts"].push(f)}
 end
-p Opts
+# p Opts
 
 require "./xorshift32.rb"
 xorshift32 = XorShift32.new(Opts.a, Opts.b, Opts.c, Opts.seed)

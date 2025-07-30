@@ -13,6 +13,8 @@ Opts = {
   "noise-subtract" => 20,
   "noise-add" => 0,
   "erode-dilate" => "0:0",
+  "aspect-range-x" => nil,
+  "aspect-range-y" => nil,
   "output" => "glyph.png",
   "mesh" => 1,
   "width" => 0,
@@ -232,13 +234,14 @@ points2 = []
     points2 << dst2_y
   end
 end
+
 if (Opts["erode-dilate-1"])
-  if (Opts.erode_dilate_1 > 0)
+  if (Opts.erode_dilate_1 < 0)
     magick_image_distorted1 = magick_image.morphology(
-      Magick::ErodeMorphology, Opts.erode_dilate_1, "Diamond")
-  elsif (Opts.erode_dilate_1 < 0)
+      Magick::ErodeMorphology, Opts.erode_dilate_1.abs, "Diamond")
+  elsif (Opts.erode_dilate_1 > 0)
     magick_image_distorted1 = magick_image.morphology(
-      Magick::DilateMorphology, 0 - Opts.erode_dilate_1, "Diamond")
+      Magick::DilateMorphology, Opts.erode_dilate_1.abs, "Diamond")
   else
     magick_image_distorted1 = magick_image
   end
@@ -246,17 +249,47 @@ end
 magick_image_distorted1 = magick_image_distorted1.distort(Magick::ShepardsDistortion, points1, true)
 
 if (Opts["erode-dilate-2"])
-  if (Opts.erode_dilate_2 > 0)
+  if (Opts.erode_dilate_2 < 0)
     magick_image_distorted2 = magick_image.morphology(
-      Magick::ErodeMorphology, Opts.erode_dilate_2, "Diamond")
-  elsif (Opts.erode_dilate_2 < 0)
+      Magick::ErodeMorphology, Opts.erode_dilate_2.abs, "Diamond")
+  elsif (Opts.erode_dilate_2 > 0)
     magick_image_distorted2 = magick_image.morphology(
-      Magick::DilateMorphology, 0 - Opts.erode_dilate_2, "Diamond")
+      Magick::DilateMorphology, Opts.erode_dilate_2.abs, "Diamond")
   else
     magick_image_distorted2 = magick_image
   end
 end
 magick_image_distorted2 = magick_image_distorted2.distort(Magick::ShepardsDistortion, points2, true)
+
+# === ASPECT RANDOMIZE ===
+def get_random_from_str_range(s, xorshift32)
+  vs = s.split("..").map{|v| v.to_f()}
+  r = (vs[0])..(vs[1])
+  r_min = vs[0]
+  r_diff = vs[1] - vs[0]
+  c = xorshift32.next() & 0xFF
+  v = r_min + ((r_diff * c) / 0xFF)
+  return v
+end
+
+def apply_aspect_noise(img, xorshift32)
+  return img if (Opts.aspect_range_x == nil && Opts.aspect_range_y == nil)
+
+  ax = Opts.aspect_range_x ? get_random_from_str_range(Opts.aspect_range_x, xorshift32) : 1
+  ay = Opts.aspect_range_y ? get_random_from_str_range(Opts.aspect_range_y, xorshift32) : 1
+
+  width_new  = (ax * img.columns).to_i()
+  height_new = (ay * img.rows).to_i()
+
+  img_resized = img.resize(width_new, height_new)
+  img.erase!
+  img.background_color = "white"
+  img = img.composite(img_resized, Magick::CenterGravity, Magick::CopyCompositeOp)
+  return img
+end
+
+magick_image_distorted1 = apply_aspect_noise(magick_image_distorted1, xorshift32)
+magick_image_distorted2 = apply_aspect_noise(magick_image_distorted1, xorshift32)
 
 # === RANDOM MASK IMAGES ===
 
@@ -300,6 +333,13 @@ img_dist1 = img_dist1.composite(mask_sub1, 0, 0, Magick::SrcOverCompositeOp)
                      .composite(mask_add1, 0, 0, Magick::SrcOverCompositeOp)
 img_dist2 = img_dist2.composite(mask_sub2, 0, 0, Magick::SrcOverCompositeOp)
                      .composite(mask_add2, 0, 0, Magick::SrcOverCompositeOp)
+
+img_dist1_q = img_dist1.quantize(2, Magick::GRAYColorspace)
+img_dist2_q = img_dist2.quantize(2, Magick::GRAYColorspace)
+img_dist1.destroy!
+img_dist2.destroy!
+img_dist1 = img_dist1_q
+img_dist2 = img_dist2_q
 
 img_mixed = Magick::Image.new(img_orig.columns, img_orig.rows)
 

@@ -15,6 +15,7 @@ Opts = {
   "erode-dilate" => "0:0",
   "aspect-range-x" => nil,
   "aspect-range-y" => nil,
+  "fill-extent" => false,
   "output" => "glyph.png",
   "mesh" => 1,
   "width" => 0,
@@ -278,18 +279,49 @@ def apply_aspect_noise(img, xorshift32)
   ax = Opts.aspect_range_x ? get_random_from_str_range(Opts.aspect_range_x, xorshift32) : 1
   ay = Opts.aspect_range_y ? get_random_from_str_range(Opts.aspect_range_y, xorshift32) : 1
 
+  width_old  = img.columns
+  height_old = img.rows
   width_new  = (ax * img.columns).to_i()
   height_new = (ay * img.rows).to_i()
 
   img_resized = img.resize(width_new, height_new)
   img.erase!
   img.background_color = "white"
-  img = img.composite(img_resized, Magick::CenterGravity, Magick::CopyCompositeOp)
+  if Opts.fill_extent
+    dx = img.columns - width_new
+    dy = img.rows - height_new
+    draw = Magick::Draw.new()
+    r = (xorshift32.next() & 0x3)
+    case r
+    when 0 then
+      gr = Magick::NorthEastGravity
+      draw.rectangle(0, 0,          dx, height_old) # vertical line at left
+      draw.rectangle(0, height_new, width_old, height_old) # horizontal line at bottom
+    when 1 then
+      gr = Magick::NorthWestGravity
+      draw.rectangle(width_new, 0,  width_old, height_old) # vertical line at right
+      draw.rectangle(0, height_new, width_old, height_old) # horizontal line at bottom
+    when 2 then
+      gr = Magick::SouthEastGravity
+      draw.rectangle(0, 0,          dx, height_old) # vertical line at left
+      draw.rectangle(0, 0,          width_old, dy) # horizontal line at top
+    when 3 then
+      gr = Magick::SouthWestGravity
+      draw.rectangle(width_new, 0,  width_old, height_old) # vertical line at right
+      draw.rectangle(0, 0,          width_old, dy) # horizontal line at top
+    end
+    p gr
+    img = img.composite(img_resized, gr, Magick::CopyCompositeOp)
+    draw.draw(img)
+    img.write("fill-extent.png")
+  else
+    img = img.composite(img_resized, Magick::CenterGravity, Magick::CopyCompositeOp)
+  end
   return img
 end
 
 magick_image_distorted1 = apply_aspect_noise(magick_image_distorted1, xorshift32)
-magick_image_distorted2 = apply_aspect_noise(magick_image_distorted1, xorshift32)
+# magick_image_distorted2 = apply_aspect_noise(magick_image_distorted1, xorshift32)
 
 # === RANDOM MASK IMAGES ===
 

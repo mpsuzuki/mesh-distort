@@ -209,11 +209,14 @@ end
 
 # === CREATE IMAGE ===
 require 'rmagick'
-magick_image = Magick::Image.new(glyph_width, glyph_height)
+magick_image = Magick::Image.new(Opts.width > 0 ? Opts.width : Opts.height, Opts.height)
 magick_image.background_color = "white"
+magick_glyph = Magick::Image.new(glyph_width, glyph_height)
+magick_glyph.background_color = "white"
 arr_pixels_16bit = arr_pixels.map{|v| v * 257}
-magick_image.import_pixels(0, 0, glyph_width, glyph_height, 'I', arr_pixels_16bit, Magick::ShortPixel)
-magick_image = magick_image.negate
+magick_glyph.import_pixels(0, 0, glyph_width, glyph_height, 'I', arr_pixels_16bit, Magick::ShortPixel)
+magick_glyph = magick_glyph.negate
+magick_image = magick_image.composite(magick_glyph, Magick::CenterGravity, Magick::CopyCompositeOp)
 
 # === DISTORT ===
 if (Opts.include?("auto-seed") || Opts["seed"] == nil)
@@ -242,9 +245,9 @@ prng = XorShift128p_u32.new(Opts.a, Opts.b, Opts.c, Opts.seed)
 points1 = []
 points2 = []
 (1..Opts.mesh).each do |iy|
-  src_y = glyph_height * iy / Opts.mesh
+  src_y = magick_image.rows * iy / Opts.mesh
   (1..Opts.mesh).each do |ix|
-    src_x = glyph_width * ix / Opts.mesh
+    src_x = magick_image.columns * ix / Opts.mesh
 
     # (4 x 5bit) + 4bit = 24bit for single random vector
     # |----| dx1 | dy1 | dx2 | dy2 |

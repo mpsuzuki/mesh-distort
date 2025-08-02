@@ -8,7 +8,8 @@ Opts = {
   "aa" => false,
   "utf8" => "A",
   "uhex" => nil,
-  "seed" => "0xDEADBEEF",
+  "seed" => nil,
+  "seed-base64" => nil,
   "strength" => 20,
   "noise-subtract" => 20,
   "noise-add" => 0,
@@ -27,13 +28,18 @@ if (Opts["uhex"] != nil)
 elsif (Opts["utf8"] != nil)
   Opts["uhex"] = Opts["utf8"].split("").first.encode("ucs-4be").unpack("N").first
 end
-if (Opts["seed"] != nil)
-  Opts["seed"] = Opts["seed"].hex()
-end
 if (Opts["erode-dilate"] != nil)
   Opts["erode-dilate-1"] = Opts.erode_dilate.split(":").first.to_i()
   Opts["erode-dilate-2"] = Opts.erode_dilate.split(":").last.to_i()
 end
+require "./xorshift32.rb"
+if (Opts["seed-base64"] != nil)
+  # p Opts["seed-base64"].length
+  # p XorShift128p_u32.dec64(Opts["seed-base64"]).length
+  Opts["seed"] = XorShift128p_u32.dec64(Opts["seed-base64"]).unpack("H*").pop()
+end
+# p Opts["seed"]
+# p Opts["seed"].length
 
 # === INITIALIZE FREETYPE ===
 require "./freetype-class.rb"
@@ -209,18 +215,50 @@ magick_image.import_pixels(0, 0, glyph_width, glyph_height, 'I', arr_pixels_16bi
 magick_image = magick_image.negate
 
 # === DISTORT ===
-require "./xorshift32.rb"
-xorshift32 = XorShift32.new(Opts.a, Opts.b, Opts.c, Opts.seed)
+if (Opts.include?("auto-seed") || Opts["seed"] == nil)
+  require "digest/xxhash"
+  seed_tokens = []
+  seed_tokens << ("font=" + Opts.font.split("/").last.gsub(/\.[0-9a-zA-Z]{3,4}$/, ""))
+  seed_tokens << ("gid=" + Opts.gid.to_s())
+  seed_tokens << ("mesh=" + Opts.mesh.to_s())
+  seed_tokens << ("strength=" + Opts.strength.to_s())
+  seed_tokens << ("noise-subtract=" + Opts.noise_subtract.to_s())
+  seed_tokens << ("noise-add=" + Opts.noise_add.to_s())
+  seed_tokens << ("erode-dilate=" + Opts.erode_dilate)
+  seed_tokens << ("aspect-range-x=" + Opts.aspect_range_x.to_s())
+  seed_tokens << ("aspect-range-y=" + Opts.aspect_range_y.to_s())
+  # p seed_tokens
+  hd128 = Digest::XXH3_128bits.hexdigest(seed_tokens.join("\t"))
+  STDERR.printf("# seed=" + hd + "\n")
+  if (Opts.output.include?("%S"))
+    Opts["output"] = Opts.output.gsub("%S", XorShift128p_u32.enc64(hd128)[0..21])
+  end
+  Opts["seed"] = hd128
+end
+
+prng = XorShift128p_u32.new(Opts.a, Opts.b, Opts.c, Opts.seed)
+# p prng
 points1 = []
 points2 = []
 (1..Opts.mesh).each do |iy|
   src_y = glyph_height * iy / Opts.mesh
   (1..Opts.mesh).each do |ix|
     src_x = glyph_width * ix / Opts.mesh
-    dx1 = ((xorshift32.next() & 0x1F) - 0xF) * Opts.strength / 0x1F
-    dy1 = ((xorshift32.next() & 0x1F) - 0xF) * Opts.strength / 0x1F
-    dx2 = ((xorshift32.next() & 0x1F) - 0xF) * Opts.strength / 0x1F
-    dy2 = ((xorshift32.next() & 0x1F) - 0xF) * Opts.strength / 0x1F
+
+    # (4 x 5bit) + 4bit = 24bit for single random vector
+    # |----| dx1 | dy1 | dx2 | dy2 |
+    # |0123|45678|9abcd|ef012|34567|
+
+    rnd32 = prng.next()
+    rnd32 = rnd32 >> 4 # discard 4 LSB for bad-equibilium
+    dx1 = ((rnd32 & 0x1F) - 0xF) * Opts.strength / 0x1F
+    rnd32 = rnd32 >> 5
+    dy1 = ((rnd32 & 0x1F) - 0xF) * Opts.strength / 0x1F
+    rnd32 = rnd32 >> 5
+    dx2 = ((rnd32 & 0x1F) - 0xF) * Opts.strength / 0x1F
+    rnd32 = rnd32 >> 5
+    dy2 = ((rnd32 & 0x1F) - 0xF) * Opts.strength / 0x1F
+
     dst1_x = src_x + dx1
     dst1_y = src_y + dy1
     dst2_x = src_x + dx2
@@ -263,21 +301,24 @@ end
 magick_image_distorted2 = magick_image_distorted2.distort(Magick::ShepardsDistortion, points2, true)
 
 # === ASPECT RANDOMIZE ===
-def get_random_from_str_range(s, xorshift32)
+def get_random_from_str_range(s, rnd_8bit)
   vs = s.split("..").map{|v| v.to_f()}
   r = (vs[0])..(vs[1])
   r_min = vs[0]
   r_diff = vs[1] - vs[0]
-  c = xorshift32.next() & 0xFF
-  v = r_min + ((r_diff * c) / 0xFF)
+  v = r_min + ((r_diff * rnd_8bit) / 0xFF)
   return v
 end
 
-def apply_aspect_noise(img, xorshift32)
+def apply_aspect_noise(img, prng)
   return img if (Opts.aspect_range_x == nil && Opts.aspect_range_y == nil)
 
-  ax = Opts.aspect_range_x ? get_random_from_str_range(Opts.aspect_range_x, xorshift32) : 1
-  ay = Opts.aspect_range_y ? get_random_from_str_range(Opts.aspect_range_y, xorshift32) : 1
+  rnd28 = prng.next() >> 4
+  rnd8x = rnd28 & 0xFF
+  rnd8y = (rnd28 >> 8) & 0xFF
+
+  ax = Opts.aspect_range_x ? get_random_from_str_range(Opts.aspect_range_x, rnd8x) : 1
+  ay = Opts.aspect_range_y ? get_random_from_str_range(Opts.aspect_range_y, rnd8y) : 1
 
   width_old  = img.columns
   height_old = img.rows
@@ -291,7 +332,7 @@ def apply_aspect_noise(img, xorshift32)
     dx = img.columns - width_new
     dy = img.rows - height_new
     draw = Magick::Draw.new()
-    r = (xorshift32.next() & 0x3)
+    r = ((prng.next() >> 4) & 0x3)
     case r
     when 0 then
       gr = Magick::NorthEastGravity
@@ -310,7 +351,7 @@ def apply_aspect_noise(img, xorshift32)
       draw.rectangle(width_new, 0,  width_old, height_old) # vertical line at right
       draw.rectangle(0, 0,          width_old, dy) # horizontal line at top
     end
-    p gr
+    # p gr
     img = img.composite(img_resized, gr, Magick::CopyCompositeOp)
     draw.draw(img)
     img.write("fill-extent.png")
@@ -332,10 +373,10 @@ def gen_random_mask(img_width, img_height, stroke_color, stroke_width, number_st
   draw.stroke_width(stroke_width)
   draw.stroke_linecap("round")
   number_strokes.times do
-    x = rand_generator.next() % img_width
-    y = rand_generator.next() % img_height
-    dx = (rand_generator.next() % (img_width / 4))  - (img_width  /8)
-    dy = (rand_generator.next() % (img_height / 4)) - (img_height /8)
+    x = (rand_generator.next() >> 4) % img_width
+    y = (rand_generator.next() >> 4) % img_height
+    dx = ((rand_generator.next() >> 4) % (img_width / 4))  - (img_width  /8)
+    dy = ((rand_generator.next() >> 4) % (img_height / 4)) - (img_height /8)
     draw.line(x, y, x + dx, y + dy)
   end
   draw.draw(canvas)
@@ -349,17 +390,17 @@ img_dist2 = magick_image_distorted2 # .transparent("white")
 
 mask_sub1 = gen_random_mask(img_orig.columns, img_orig.rows,
                             "white", img_orig.rows / 20, Opts.noise_subtract,
-                            xorshift32)
+                            prng)
 mask_add1 = gen_random_mask(img_orig.columns, img_orig.rows,
                             "black", img_orig.rows / 20, Opts.noise_add,
-                            xorshift32)
+                            prng)
 
 mask_sub2 = gen_random_mask(img_orig.columns, img_orig.rows,
                             "white", img_orig.rows / 20, Opts.noise_subtract,
-                            xorshift32)
+                            prng)
 mask_add2 = gen_random_mask(img_orig.columns, img_orig.rows,
                             "black", img_orig.rows / 20, Opts.noise_add,
-                            xorshift32)
+                            prng)
 
 img_dist1 = img_dist1.composite(mask_sub1, 0, 0, Magick::SrcOverCompositeOp)
                      .composite(mask_add1, 0, 0, Magick::SrcOverCompositeOp)
@@ -406,3 +447,4 @@ img_mixed.store_pixels(0, 0, img_mixed.columns, img_mixed.rows, pxls_mixed)
 img_mixed.write(Opts.output)
 
 puts "Saved rasterized glyph ##{Opts.gid} to #{Opts.output}"
+puts "#{prng.count} random number is consumed"

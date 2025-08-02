@@ -16,6 +16,7 @@ Opts = {
   "erode-dilate" => "0:0",
   "aspect-range-x" => nil,
   "aspect-range-y" => nil,
+  "apply-aspect" => "g",
   "fill-extent" => false,
   "output" => "glyph.png",
   "mesh" => 1,
@@ -361,8 +362,12 @@ def apply_aspect_noise(img, prng)
   return img
 end
 
-magick_image_distorted1 = apply_aspect_noise(magick_image_distorted1, xorshift32)
-# magick_image_distorted2 = apply_aspect_noise(magick_image_distorted1, xorshift32)
+if (Opts.apply_aspect.downcase().include?("g"))
+  magick_image_distorted1 = apply_aspect_noise(magick_image_distorted1, prng)
+end
+if (Opts.apply_aspect.downcase().include?("r"))
+  magick_image_distorted2 = apply_aspect_noise(magick_image_distorted2, prng)
+end
 
 # === RANDOM MASK IMAGES ===
 

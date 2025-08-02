@@ -10,9 +10,9 @@ Opts = {
   "uhex" => nil,
   "seed" => nil,
   "seed-base64" => nil,
-  "strength" => 20,
-  "noise-subtract" => 20,
-  "noise-add" => 0,
+  "strength" => "20:20",
+  "noise-sub" => "20:20",
+  "noise-add" => "0:0",
   "erode-dilate" => "0:0",
   "aspect-range-x" => nil,
   "aspect-range-y" => nil,
@@ -24,14 +24,24 @@ Opts = {
   "height" => 32
 }
 require "getOpts.rb"
+Opts["noise-sub"] = Opts["noise-subtract"] if (Opts.include?("noise-subtract"))
+["strength", "noise-sub", "noise-add"].each do |k|
+  if (Opts.k.class == String)
+    vs = Opts[k].split(":").map{|s| (s =~ /^[-+]?[0-9]+$/) ? s.to_i() : s.to_f()}
+    Opts[k] = [vs[0 % vs.length], vs[1 % vs.length]]
+  else
+    Opts[k] = [Opts[k], Opts[k]]
+  end
+end
+
 if (Opts["uhex"] != nil)
   Opts["uhex"] = Opts.uhex.gsub(/^[Uu]\+/, "").hex()
 elsif (Opts["utf8"] != nil)
   Opts["uhex"] = Opts["utf8"].split("").first.encode("ucs-4be").unpack("N").first
 end
 if (Opts["erode-dilate"] != nil)
-  Opts["erode-dilate-1"] = Opts.erode_dilate.split(":").first.to_i()
-  Opts["erode-dilate-2"] = Opts.erode_dilate.split(":").last.to_i()
+  vs = Opts["erode-dilate"].split(":").map{|v| v.to_i()}
+  Opts["erode-dilate"] = [vs[0 % vs.length], vs[1 % vs.length]]
 end
 require "./xorshift32.rb"
 if (Opts["seed-base64"] != nil)
@@ -41,6 +51,8 @@ if (Opts["seed-base64"] != nil)
 end
 # p Opts["seed"]
 # p Opts["seed"].length
+p Opts
+
 
 # === INITIALIZE FREETYPE ===
 require "./freetype-class.rb"
@@ -225,15 +237,15 @@ if (Opts.include?("auto-seed") || Opts["seed"] == nil)
   seed_tokens << ("font=" + Opts.font.split("/").last.gsub(/\.[0-9a-zA-Z]{3,4}$/, ""))
   seed_tokens << ("gid=" + Opts.gid.to_s())
   seed_tokens << ("mesh=" + Opts.mesh.to_s())
-  seed_tokens << ("strength=" + Opts.strength.to_s())
-  seed_tokens << ("noise-subtract=" + Opts.noise_subtract.to_s())
-  seed_tokens << ("noise-add=" + Opts.noise_add.to_s())
-  seed_tokens << ("erode-dilate=" + Opts.erode_dilate)
-  seed_tokens << ("aspect-range-x=" + Opts.aspect_range_x.to_s())
-  seed_tokens << ("aspect-range-y=" + Opts.aspect_range_y.to_s())
-  # p seed_tokens
+  seed_tokens << ("strength=" + Opts.strength.map{|v| v.to_s()}.join(":"))
+  seed_tokens << ("noise-sub=" + Opts.noise_sub.map{|v| v.to_s()}.join(":"))
+  seed_tokens << ("noise-add=" + Opts.noise_add.map{|v| v.to_s()}.join(":"))
+  seed_tokens << ("erode-dilate=" + Opts.erode_dilate.map{|v| v.to_s()}.join(":"))
+  seed_tokens << ("aspect-range-x=" + Opts.aspect_range_x.to_s()) if (Opts.aspect_range_x != nil)
+  seed_tokens << ("aspect-range-y=" + Opts.aspect_range_y.to_s()) if (Opts.aspect_range_y != nil)
+  p seed_tokens
   hd128 = Digest::XXH3_128bits.hexdigest(seed_tokens.join("\t"))
-  STDERR.printf("# seed=" + hd + "\n")
+  STDERR.printf("# seed=" + hd128 + "\n")
   if (Opts.output.include?("%S"))
     Opts["output"] = Opts.output.gsub("%S", XorShift128p_u32.enc64(hd128)[0..21])
   end
@@ -255,13 +267,13 @@ points2 = []
 
     rnd32 = prng.next()
     rnd32 = rnd32 >> 4 # discard 4 LSB for bad-equibilium
-    dx1 = ((rnd32 & 0x1F) - 0xF) * Opts.strength / 0x1F
+    dx1 = ((rnd32 & 0x1F) - 0xF) * Opts.strength.first / 0x1F
     rnd32 = rnd32 >> 5
-    dy1 = ((rnd32 & 0x1F) - 0xF) * Opts.strength / 0x1F
+    dy1 = ((rnd32 & 0x1F) - 0xF) * Opts.strength.first / 0x1F
     rnd32 = rnd32 >> 5
-    dx2 = ((rnd32 & 0x1F) - 0xF) * Opts.strength / 0x1F
+    dx2 = ((rnd32 & 0x1F) - 0xF) * Opts.strength.last / 0x1F
     rnd32 = rnd32 >> 5
-    dy2 = ((rnd32 & 0x1F) - 0xF) * Opts.strength / 0x1F
+    dy2 = ((rnd32 & 0x1F) - 0xF) * Opts.strength.last / 0x1F
 
     dst1_x = src_x + dx1
     dst1_y = src_y + dy1
@@ -278,29 +290,23 @@ points2 = []
   end
 end
 
-if (Opts["erode-dilate-1"])
-  if (Opts.erode_dilate_1 < 0)
-    magick_image_distorted1 = magick_image.morphology(
-      Magick::ErodeMorphology, Opts.erode_dilate_1.abs, "Diamond")
-  elsif (Opts.erode_dilate_1 > 0)
-    magick_image_distorted1 = magick_image.morphology(
-      Magick::DilateMorphology, Opts.erode_dilate_1.abs, "Diamond")
-  else
-    magick_image_distorted1 = magick_image
-  end
+  magick_image_distorted1 = magick_image
+if (Opts.erode_dilate.first < 0)
+  magick_image_distorted1 = magick_image.morphology(
+    Magick::ErodeMorphology, Opts.erode_dilate.first.abs, "Diamond")
+elsif (Opts.erode_dilate.first > 0)
+  magick_image_distorted1 = magick_image.morphology(
+    Magick::DilateMorphology, Opts.erode_dilate.first.abs, "Diamond")
 end
 magick_image_distorted1 = magick_image_distorted1.distort(Magick::ShepardsDistortion, points1, true)
 
-if (Opts["erode-dilate-2"])
-  if (Opts.erode_dilate_2 < 0)
-    magick_image_distorted2 = magick_image.morphology(
-      Magick::ErodeMorphology, Opts.erode_dilate_2.abs, "Diamond")
-  elsif (Opts.erode_dilate_2 > 0)
-    magick_image_distorted2 = magick_image.morphology(
-      Magick::DilateMorphology, Opts.erode_dilate_2.abs, "Diamond")
-  else
-    magick_image_distorted2 = magick_image
-  end
+magick_image_distorted2 = magick_image
+if (Opts.erode_dilate.last < 0)
+  magick_image_distorted2 = magick_image.morphology(
+    Magick::ErodeMorphology, Opts.erode_dilate.last.abs, "Diamond")
+elsif (Opts.erode_dilate.last > 0)
+  magick_image_distorted2 = magick_image.morphology(
+    Magick::DilateMorphology, Opts.erode_dilate.last.abs, "Diamond")
 end
 magick_image_distorted2 = magick_image_distorted2.distort(Magick::ShepardsDistortion, points2, true)
 
@@ -374,17 +380,17 @@ end
 
 # === RANDOM MASK IMAGES ===
 
-def gen_random_mask(img_width, img_height, stroke_color, stroke_width, number_strokes, rand_generator)
+def gen_random_mask(img_width, img_height, stroke_color, stroke_width, number_strokes, prng)
   canvas = Magick::Image.new(img_width, img_height) {|options| options.background_color = "none"}
   draw = Magick::Draw.new()
   draw.stroke(stroke_color)
   draw.stroke_width(stroke_width)
   draw.stroke_linecap("round")
   number_strokes.times do
-    x = (rand_generator.next() >> 4) % img_width
-    y = (rand_generator.next() >> 4) % img_height
-    dx = ((rand_generator.next() >> 4) % (img_width / 4))  - (img_width  /8)
-    dy = ((rand_generator.next() >> 4) % (img_height / 4)) - (img_height /8)
+    x = (prng.next() >> 4) % img_width
+    y = (prng.next() >> 4) % img_height
+    dx = ((prng.next() >> 4) % (img_width / 4))  - (img_width  /8)
+    dy = ((prng.next() >> 4) % (img_height / 4)) - (img_height /8)
     draw.line(x, y, x + dx, y + dy)
   end
   draw.draw(canvas)
@@ -397,17 +403,17 @@ img_dist1 = magick_image_distorted1 # .transparent("white")
 img_dist2 = magick_image_distorted2 # .transparent("white")
 
 mask_sub1 = gen_random_mask(img_orig.columns, img_orig.rows,
-                            "white", img_orig.rows / 20, Opts.noise_subtract,
+                            "white", img_orig.rows / 20, Opts.noise_sub.first,
                             prng)
 mask_add1 = gen_random_mask(img_orig.columns, img_orig.rows,
-                            "black", img_orig.rows / 20, Opts.noise_add,
+                            "black", img_orig.rows / 20, Opts.noise_add.first,
                             prng)
 
 mask_sub2 = gen_random_mask(img_orig.columns, img_orig.rows,
-                            "white", img_orig.rows / 20, Opts.noise_subtract,
+                            "white", img_orig.rows / 20, Opts.noise_sub.last,
                             prng)
 mask_add2 = gen_random_mask(img_orig.columns, img_orig.rows,
-                            "black", img_orig.rows / 20, Opts.noise_add,
+                            "black", img_orig.rows / 20, Opts.noise_add.last,
                             prng)
 
 img_dist1 = img_dist1.composite(mask_sub1, 0, 0, Magick::SrcOverCompositeOp)

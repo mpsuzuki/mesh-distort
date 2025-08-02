@@ -458,7 +458,9 @@ pxls_mixed = pxls_dist1.zip(pxls_dist2).map{|pxl_dist1, pxl_dist2|
 }
 img_mixed.store_pixels(0, 0, img_mixed.columns, img_mixed.rows, pxls_mixed)
 
-img_mixed.write(Opts.output)
+fho = File::open(Opts.output, "wb")
+img_mixed.write(fho)
+fho.close()
 
 puts "Saved rasterized glyph ##{Opts.gid} to #{Opts.output}"
 puts "#{prng.count} random number is consumed"

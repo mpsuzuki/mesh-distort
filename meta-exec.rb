@@ -12,6 +12,12 @@ Opts = {
   "noise-add" => 0,
   "width" => 14,
   "height" => 14,
+  "erode-dilate" => "0:0",
+  "aspect-range-x" => nil,
+  "aspect-range-y" => nil,
+  "apply-aspect" => "g",
+  "fill-extent" => false,
+  "jump-random-per-glyph" => 512,
   "fonts" => [],
   "args" => []
 }

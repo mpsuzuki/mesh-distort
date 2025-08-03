@@ -10,6 +10,7 @@ Opts = {
   "uhex" => nil,
   "seed" => nil,
   "seed-base64" => nil,
+  "log" => nil,
   "strength" => "20:20",
   "noise-sub" => "20:20",
   "noise-add" => "0:0",
@@ -51,7 +52,15 @@ if (Opts["seed-base64"] != nil)
 end
 # p Opts["seed"]
 # p Opts["seed"].length
-p Opts
+# p Opts
+if (Opts["log"] == nil)
+elsif (Opts["log"].downcase() == "stderr" || Opts["log"] == 2)
+  Opts["log"] = STDERR
+elsif (Opts["log"].downcase() == "stdout" || Opts["log"] == 1)
+  Opts["log"] = STDOUT
+else
+  Opts["log"] = File::open(Opts["log"], "w")
+end
 
 
 # === INITIALIZE FREETYPE ===
@@ -266,6 +275,7 @@ points2 = []
     # |0123|45678|9abcd|ef012|34567|
 
     rnd32 = prng.next()
+    Opts.log.printf("prng.next(): 0x%08x\n", rnd32) if (Opts.log)
     rnd32 = rnd32 >> 4 # discard 4 LSB for bad-equibilium
     dx1 = ((rnd32 & 0x1F) - 0xF) * Opts.strength.first / 0x1F
     rnd32 = rnd32 >> 5
@@ -279,6 +289,15 @@ points2 = []
     dst1_y = src_y + dy1
     dst2_x = src_x + dx2
     dst2_y = src_y + dy2
+    if (Opts.log)
+      Opts.log.printf("distortion @%03d,%03d: img1(%s%02d,%s%02d), img2(%s%02d,%s%02d)\n",
+                      src_x, src_y,
+                      (dx1 < 0) ? "+" : "-", dx1.abs(),
+                      (dy1 < 0) ? "+" : "-", dy1.abs(),
+                      (dx2 < 0) ? "+" : "-", dx2.abs(),
+                      (dy2 < 0) ? "+" : "-", dy2.abs()
+                     )
+    end
     points1 << src_x
     points1 << src_y
     points2 << src_x
@@ -323,7 +342,9 @@ end
 def apply_aspect_noise(img, prng)
   return img if (Opts.aspect_range_x == nil && Opts.aspect_range_y == nil)
 
-  rnd28 = prng.next() >> 4
+  rnd32 = prng.next()
+  Opts.log.printf("prng.next(): 0x%08x\n", rnd32) if (Opts.log)
+  rnd28 = rnd32.next() >> 4
   rnd8x = rnd28 & 0xFF
   rnd8y = (rnd28 >> 8) & 0xFF
 
@@ -342,7 +363,9 @@ def apply_aspect_noise(img, prng)
     dx = img.columns - width_new
     dy = img.rows - height_new
     draw = Magick::Draw.new()
-    r = ((prng.next() >> 4) & 0x3)
+    rnd32 = prng.next()
+    Opts.log.printf("prng.next(): 0x%08x\n", rnd32) if (Opts.log)
+    r = (rnd32 >> 4) & 0x3
     case r
     when 0 then
       gr = Magick::NorthEastGravity
@@ -386,12 +409,23 @@ def gen_random_mask(img_width, img_height, stroke_color, stroke_width, number_st
   draw.stroke(stroke_color)
   draw.stroke_width(stroke_width)
   draw.stroke_linecap("round")
-  number_strokes.times do
-    x = (prng.next() >> 4) % img_width
-    y = (prng.next() >> 4) % img_height
-    dx = ((prng.next() >> 4) % (img_width / 4))  - (img_width  /8)
-    dy = ((prng.next() >> 4) % (img_height / 4)) - (img_height /8)
+  (0...number_strokes).each do |i|
+    rnd32 = prng.next()
+    Opts.log.printf("prng.next(): 0x%08x\n", rnd32) if (Opts.log)
+    x = (rnd32 >> 4) % img_width
+    rnd32 = prng.next()
+    Opts.log.printf("prng.next(): 0x%08x\n", rnd32) if (Opts.log)
+    y = (rnd32 >> 4) % img_height
+    rnd32 = prng.next()
+    Opts.log.printf("prng.next(): 0x%08x\n", rnd32) if (Opts.log)
+    dx = ((rnd32 >> 4) % (img_width / 4))  - (img_width  /8)
+    rnd32 = prng.next()
+    Opts.log.printf("prng.next(): 0x%08x\n", rnd32) if (Opts.log)
+    dy = ((rnd32 >> 4) % (img_height / 4)) - (img_height /8)
     draw.line(x, y, x + dx, y + dy)
+    if (Opts.log)
+      Opts.log.printf("  vector #%02d: (%03d,%03d) -> (%03d,%03d)\n", i, x, y, x+dx, y+dy)
+    end
   end
   draw.draw(canvas)
   return canvas
@@ -402,16 +436,20 @@ img_orig = magick_image # .transparent("white")
 img_dist1 = magick_image_distorted1 # .transparent("white")
 img_dist2 = magick_image_distorted2 # .transparent("white")
 
+Opts.log.puts("image1 noise-sub") if (Opts.log)
 mask_sub1 = gen_random_mask(img_orig.columns, img_orig.rows,
                             "white", img_orig.rows / 20, Opts.noise_sub.first,
                             prng)
+Opts.log.puts("image1 noise-add") if (Opts.log)
 mask_add1 = gen_random_mask(img_orig.columns, img_orig.rows,
                             "black", img_orig.rows / 20, Opts.noise_add.first,
                             prng)
 
+Opts.log.puts("image2 noise-sub") if (Opts.log)
 mask_sub2 = gen_random_mask(img_orig.columns, img_orig.rows,
                             "white", img_orig.rows / 20, Opts.noise_sub.last,
                             prng)
+Opts.log.puts("image2 noise-add") if (Opts.log)
 mask_add2 = gen_random_mask(img_orig.columns, img_orig.rows,
                             "black", img_orig.rows / 20, Opts.noise_add.last,
                             prng)

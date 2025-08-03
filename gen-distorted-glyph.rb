@@ -1,9 +1,9 @@
 #!/usr/bin/env ruby
 
 Opts = {
-  "a" => 3,
+  "a" => 4,
   "b" => 1,
-  "c" => 14,
+  "c" => 5,
   "gid" => 0,
   "aa" => false,
   "utf8" => "A",

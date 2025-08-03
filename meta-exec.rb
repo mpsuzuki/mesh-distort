@@ -1,9 +1,9 @@
 #!/usr/bin/env ruby
 require "./xorshift32.rb"
 Opts = {
-  "a" => 3,
-  "b" => 13,
-  "c" => 7,
+  "a" => 4,
+  "b" => 1,
+  "c" => 5,
   "seed" => "01234567012345670123456701234567",
   "seed-base64" => "EjRWeBI0VngSNFZ4EjRWeA",
   "dir" => "./",

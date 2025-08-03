@@ -58,7 +58,7 @@ class XorShift128p_u32
 
     v0 = self.v[0]
     v3 = self.v[3]
-    r = v0 + v3
+    r = (v0 + v3) & 0xFFFFFFFF
     self.v.shift()
 
     v0 = v0 ^ ((v0 << self.a) & 0xFFFFFFFF)

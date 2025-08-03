@@ -28,7 +28,7 @@ require "getOpts.rb"
 Opts["noise-sub"] = Opts["noise-subtract"] if (Opts.include?("noise-subtract"))
 ["strength", "noise-sub", "noise-add"].each do |k|
   if (Opts.k.class == String)
-    vs = Opts[k].split(":").map{|s| (s =~ /^[-+]?[0-9]+$/) ? s.to_i() : s.to_f()}
+    vs = Opts[k].split(/[:;,^]/).map{|s| (s =~ /^[-+]?[0-9]+$/) ? s.to_i() : s.to_f()}
     Opts[k] = [vs[0 % vs.length], vs[1 % vs.length]]
   else
     Opts[k] = [Opts[k], Opts[k]]
@@ -41,7 +41,7 @@ elsif (Opts["utf8"] != nil)
   Opts["uhex"] = Opts["utf8"].split("").first.encode("ucs-4be").unpack("N").first
 end
 if (Opts["erode-dilate"] != nil)
-  vs = Opts["erode-dilate"].split(":").map{|v| v.to_i()}
+  vs = Opts["erode-dilate"].split(/[:;,^]/).map{|v| v.to_i()}
   Opts["erode-dilate"] = [vs[0 % vs.length], vs[1 % vs.length]]
 end
 require "./xorshift32.rb"

@@ -27,7 +27,7 @@ Opts = {
 require "getOpts.rb"
 Opts["noise-sub"] = Opts["noise-subtract"] if (Opts.include?("noise-subtract"))
 ["strength", "noise-sub", "noise-add"].each do |k|
-  if (Opts.k.class == String)
+  if (Opts[k].class == String)
     vs = Opts[k].split(/[:;,^]/).map{|s| (s =~ /^[-+]?[0-9]+$/) ? s.to_i() : s.to_f()}
     Opts[k] = [vs[0 % vs.length], vs[1 % vs.length]]
   else

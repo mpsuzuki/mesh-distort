@@ -77,8 +77,11 @@ def proc_gid(ft_face, path_font, gid, ucs, prng)
     cmd << sprintf("--height=%d", Opts.height)
     cmd << sprintf("--seed-base64=%s", prng_st64)
     cmd << sprintf("--strength=%d", Opts.strength)
-    cmd << sprintf("--noise-subtract=%d", Opts.noise_subtract) if (Opts.include?("noise-subtract"))
-    cmd << sprintf("--noise-sub=%s", Opts.noise_sub) if (Opts.include?("noise-sub"))
+    if (Opts.include?("noise-sub"))
+      cmd << sprintf("--noise-sub=%s", Opts.noise_sub)
+    else
+      cmd << sprintf("--noise-subtract=%s", Opts.noise_subtract.to_s())
+    end
     cmd << sprintf("--noise-add=%s", Opts.noise_add.to_s())
     cmd << sprintf("--erode-dilate=%s", Opts.erode_dilate) if (Opts.include?("erode-dilate"))
     cmd << sprintf("--aspect-range-x=%s", Opts["aspect-range-x"]) if (Opts["aspect-range-x"] != nil)
@@ -86,14 +89,18 @@ def proc_gid(ft_face, path_font, gid, ucs, prng)
     cmd << sprintf("--apply-aspect=%s", Opts["apply-aspect"]) if (Opts["apply-aspect"] != nil)
     cmd << sprintf("--fill-extent") if (Opts.include?("fill-extent"))
     if (ucs != nil)
-      cmd << sprintf("--output=%s_%s_pw%02d_sub%02d_add%02d_B64=%s.png",
+      cmd << sprintf("--output=%s_%s_pw%02d_sub%s_add%s_B64=%s.png",
         [Opts.dir, base_font].join("/"), ucs,
-        Opts.strength, Opts.noise_subtract, Opts.noise_add, prng_st64
+        Opts.strength,
+        Opts.include?("noise-sub") ? Opts.noise_sub.to_s() : Opts.noise_subtract.to_s(),
+        Opts.noise_add.to_s(), prng_st64
       )
     else
-      cmd << sprintf("--output=%s_g%05d_pw%02d_sub%02d_add%02d_B64=%s.png",
+      cmd << sprintf("--output=%s_g%05d_pw%02d_sub%s_add%s_B64=%s.png",
         [Opts.dir, base_font].join("/"), gid,
-        Opts.strength, Opts.noise_subtract, Opts.noise_add, prng_st64
+        Opts.strength,
+        Opts.include?("noise-sub") ? Opts.noise_sub.to_s() : Opts.noise_subtract.to_s(),
+        Opts.noise_add.to_s(), prng_st64
       )
     end
     puts cmd.join(" ")

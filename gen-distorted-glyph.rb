@@ -23,7 +23,7 @@ Opts = {
   "mesh" => 1,
   "width" => 0,
   "overwrite" => false,
-  "mkdir" => false,
+  "mkdir" => true,
   "height" => 32
 }
 require "getOpts.rb"

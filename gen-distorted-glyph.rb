@@ -499,6 +499,7 @@ pxls_mixed = pxls_dist1.zip(pxls_dist2).map{|pxl_dist1, pxl_dist2|
 img_mixed.store_pixels(0, 0, img_mixed.columns, img_mixed.rows, pxls_mixed)
 
 fho = File::open(Opts.output, "wb")
+img_mixed.format = "png"
 img_mixed.write(fho)
 fho.close()
 

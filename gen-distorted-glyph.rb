@@ -22,9 +22,25 @@ Opts = {
   "output" => "glyph.png",
   "mesh" => 1,
   "width" => 0,
+  "overwrite" => false,
+  "mkdir" => false,
   "height" => 32
 }
 require "getOpts.rb"
+
+if (File::readable?(Opts.output) && !Opts["overwrite"])
+  STDERR.printf("# %s is existing, use --enable-overwrite to redo it\n", Opts.output)
+  exit(1)
+elsif (!File::exist?(File::dirname(Opts.output)))
+  if (Opts["mkdir"])
+    require "fileutils"
+    FileUtils.mkdir_p(File::dirname(Opts.output))
+  else
+    STDERR.printf("# destination \"" + File::dirname(Opts.output) + "\" is missing, use --enable-mkdir\n")
+    exit(1)
+  end
+end
+
 Opts["noise-sub"] = Opts["noise-subtract"] if (Opts.include?("noise-subtract"))
 ["strength", "noise-sub", "noise-add"].each do |k|
   if (Opts[k].class == String)
@@ -259,6 +275,9 @@ if (Opts.include?("auto-seed") || Opts["seed"] == nil)
   STDERR.printf("# seed=" + hd128 + "\n")
   if (Opts.output.include?("%S"))
     Opts["output"] = Opts.output.gsub("%S", XorShift128p_u32.enc64(hd128)[0..21])
+  end
+  if (File::readable?(Opts.output) && !Opts["overwrite"])
+    STDERR.printf("# %s is existing, use --enable-overwrite to redo it\n", Opts.output)
   end
   Opts["seed"] = hd128
 end

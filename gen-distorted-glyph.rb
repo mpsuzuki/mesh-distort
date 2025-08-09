@@ -49,8 +49,10 @@ if (Opts["seed-base64"] != nil)
   # p Opts["seed-base64"].length
   # p XorShift128p_u32.dec64(Opts["seed-base64"]).length
   Opts["seed"] = XorShift128p_u32.dec64(Opts["seed-base64"]).unpack("H*").pop()
+  printf("random seed is [")
+  printf(Opts["seed"].scan(/.{8}/).map{|v| v.hex()}.map{|v| sprintf("0x%08x", v)}.join(", "))
+  printf("]\n")
 end
-# p Opts["seed"]
 # p Opts["seed"].length
 # p Opts
 if (Opts["log"] == nil)
